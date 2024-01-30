@@ -17,8 +17,13 @@ function escutaLocaisEmTempoReal(adicionaGrupo: any) {
   }).subscribe();
 }
 
+interface Location {
+  latitude: number;
+  longitude: number;
+}
+
 export function Main() {
-  const [location, setLocation] = useState({ latitude: -25.081489, longitude: -50.169198 });
+  const [location, setLocation] = useState<Location>({ latitude: 0, longitude: 0 });
   const [formOpen, setFormOpen] = useState(false);
   const [local, setLocal] = useState('');
   const [link, setLink] = useState('');
@@ -37,13 +42,24 @@ export function Main() {
     });
 
   useEffect(() => {
-    if (coords !== undefined) {
-      setLocation({
-        latitude: coords.latitude,
-        longitude: coords.longitude
-      })
+    // Check if Geolocation is supported by the browser
+    if (navigator.geolocation) {
+      // Request the current position
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // Extract latitude and longitude from the position object
+          const { latitude, longitude } = position.coords;
+          // Set the location in the state
+          setLocation({ latitude, longitude });
+        },
+        (error) => {
+          console.error('Error getting current position:', error);
+        }
+      );
+    } else {
+      console.error('Geolocation is not supported by this browser.');
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     supabaseClient.from('grupos').select('*').order('id', { ascending: false })
@@ -65,25 +81,24 @@ export function Main() {
     }
   }, [formOpen]);
 
-  function handleNovoGrupo(localGrupo: string, descGrupo: string, linkGrupo: string) {
-    if (linkGrupo.trim() != "") {
-      const grupo = {
-        nome_grupo: localGrupo,
-        descricao: descGrupo,
-        link: linkGrupo,
-        latitude: location.latitude,
-        longitude: location.longitude,
-      };
+  function handleNovoGrupo(data: FormData) {
 
-      supabaseClient.from('grupos').insert([grupo]).then(({ data }) => {
-        console.log('Dados da Inserção', data)
-      });
+    const grupo = {
+      nome_grupo: data.get('local'),
+      descricao: data.get('description'),
+      link: data.get('link'),
+      latitude: location.latitude,
+      longitude: location.longitude,
+    };
 
-      setLocal('');
-      setDesc('');
-      setLink('');
-      setFormOpen(false);
-    }
+    supabaseClient.from('grupos').insert([grupo]).then(({ data }) => {
+      console.log('Dados da Inserção', data)
+    });
+
+    setLocal('');
+    setDesc('');
+    setLink('');
+    setFormOpen(false);
   }
 
   return (
@@ -176,17 +191,16 @@ export function Main() {
       {formOpen &&
         <div className="flex absolute w-[300px] h-auto rounded-sm shadow-md flex-col items-center top-[20%] left-[40%] bg-gray-50 px-4 py-10 backdrop-blur-md">
           <h2 className="text-blue-400 font-bold mb-4">Cadastro de grupo</h2>
-          <form className="flex flex-col" onSubmit={(event) => {
-            event.preventDefault();
-            handleNovoGrupo(local, desc, link);
+          <form className="flex flex-col" onSubmit={() => {
+            handleNovoGrupo;
           }}
           >
             <label className="text-blue-400">Nome do local</label>
-            <input type="text" className="border border-blue-400 rounded-sm mb-2 text-black" onChange={(event) => { setLocal(event.target.value) }}></input>
+            <input type="text" required name="local" className="border border-blue-400 rounded-sm mb-2 text-black" onChange={(event) => { setLocal(event.target.value) }}></input>
             <label className="text-blue-400">Descrição</label>
-            <input type="text" className="border border-blue-400 rounded-sm mb-2 text-black" onChange={(event) => { setDesc(event.target.value) }}></input>
+            <input type="text" required name="description" className="border border-blue-400 rounded-sm mb-2 text-black" onChange={(event) => { setDesc(event.target.value) }}></input>
             <label className="text-blue-400">Link</label>
-            <input type="text" className="border border-blue-400 rounded-sm mb-8 text-black" onChange={(event) => { setLink(event.target.value) }}></input>
+            <input type="text" required name="link" className="border border-blue-400 rounded-sm mb-8 text-black" onChange={(event) => { setLink(event.target.value) }}></input>
             <button type="submit" className="w-full bg-blue-400 text-gray-50">ENVIAR</button>
           </form>
         </div>

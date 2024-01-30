@@ -1,6 +1,4 @@
 import { Marker } from "@react-google-maps/api";
-import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import ReactTooltip from 'react-tooltip'
 
 interface MarkProps {
